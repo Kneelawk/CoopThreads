@@ -1,3 +1,6 @@
 /.clice/
+/.vscode/
 /.idea/
 /.zig-cache/
+/cmake-build-debug/
+/CMakeLists.txt
