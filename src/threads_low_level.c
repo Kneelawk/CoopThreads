@@ -16,6 +16,13 @@ void tll_init_manager(struct tll_thread_manager *manager, uint32_t max_thread_co
   manager->threads = malloc(sizeof(struct tll_thread_info) * max_thread_count);
   manager->states = malloc(sizeof(struct tll_saved_thread_state) * max_thread_count);
 
+  // initialize main thread
+  manager->main_state.present = 0;
+
+  // assumes there is no threading capability outside this,
+  // so this is automatically initialized on the main thread
+  current_thread_id = 0; // zero is the main thread, all threads are their index + 1
+
   // initialize threads
   for (uint32_t i = 0; i < max_thread_count; i++) {
     struct tll_thread_info *thread = &manager->threads[i];

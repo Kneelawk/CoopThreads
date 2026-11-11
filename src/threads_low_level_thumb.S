@@ -7,5 +7,6 @@
   .thumb
 
   .global retrieve_lr
+  .thumb_func
 retrieve_lr:
   

@@ -32,7 +32,6 @@ struct tll_saved_thread_state {
 // Low-level thread manager
 struct tll_thread_manager {
   uint32_t max_thread_count;
-  struct tll_thread_info main_thread;
   struct tll_saved_thread_state main_state;
   struct tll_thread_info *threads;
   struct tll_saved_thread_state *states;
