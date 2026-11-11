@@ -23,13 +23,11 @@ void tll_init_manager(struct tll_thread_manager *manager, uint32_t max_thread_co
 
     // thread info setup
     thread->in_use = 0;
-    thread->thread_id = i;
     thread->stack = thread_stacks + (i * stack_size_per_thread);
     thread->stack_size = stack_size_per_thread;
 
     // saved thread state setup
     state->present = 0;
-    state->thread = thread;
   }
 }
 
@@ -41,5 +39,5 @@ void tll_deinit_manager(struct tll_thread_manager *manager) {
 }
 
 void tll_yield(struct tll_thread_manager *manager) {
-  
+  // manager->states[]
 }
