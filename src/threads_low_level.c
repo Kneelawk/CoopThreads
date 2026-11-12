@@ -12,12 +12,8 @@ void tll_init_manager(struct tll_thread_manager *manager, uint32_t max_thread_co
   manager->thread_stacks = thread_stacks;
   manager->stack_size_per_thread = stack_size_per_thread;
 
-  // allocate thread info storage
-  manager->threads = malloc(sizeof(struct tll_thread_info) * max_thread_count);
-  manager->states = malloc(sizeof(struct tll_saved_thread_state) * max_thread_count);
-
-  // initialize main thread
-  manager->main_state.present = 0;
+  // allocate thread state storage
+  manager->states = malloc(sizeof(struct tll_saved_thread_state) * (max_thread_count + 1));
 
   // assumes there is no threading capability outside this,
   // so this is automatically initialized on the main thread
@@ -25,26 +21,22 @@ void tll_init_manager(struct tll_thread_manager *manager, uint32_t max_thread_co
 
   // initialize threads
   for (uint32_t i = 0; i < max_thread_count; i++) {
-    struct tll_thread_info *thread = &manager->threads[i];
     struct tll_saved_thread_state *state = &manager->states[i];
 
-    // thread info setup
-    thread->in_use = 0;
-    thread->stack = thread_stacks + (i * stack_size_per_thread);
-    thread->stack_size = stack_size_per_thread;
-
     // saved thread state setup
-    state->present = 0;
+    state->saved = 0;
   }
 }
 
 void tll_deinit_manager(struct tll_thread_manager *manager) {
   free(manager->states);
-  free(manager->threads);
   manager->states = NULL;
-  manager->threads = NULL;
 }
 
-void tll_yield(struct tll_thread_manager *manager) {
-  // manager->states[]
+void tll_yield2(struct tll_thread_manager *manager) {
+  struct tll_saved_thread_state *state = &manager->states[current_thread_id];
+  state->pc = 2;
+  state->regs[0] = 0;
+  state->regs[1] = 1;
+  state->saved = 3;
 }
