@@ -13,7 +13,8 @@
 
   // Save r4-r11, lr, sp into the current thread's thread state structure
   //
-  // expects the address of the thread manager to be in r0, takes no other arguments, returns nothing
+  // expects the address of the thread manager to be in r0,
+  // takes no other arguments, returns nothing, maintains r0
   .global tll_save
   .thumb_func
 tll_save:
@@ -24,8 +25,8 @@ tll_save:
   LDR ip, [r3]                                // deref thread id addr to get thread id
   MLA r2, r1, ip, r2                          // index into thread_manager states array by thread id
 
-  // store saved registers
-  STMIA r2, {r4-r11}                          // store saved registers
+  // store registers to tll_saved_thread_state struct
+  STMIA r2!, {r4-r11}                          // store saved registers
   
 
   .global tll_yield
