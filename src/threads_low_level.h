@@ -15,15 +15,8 @@ extern "C" {
 // but the Teensy4.1 is single-core and we are the only ones switching and managing threads
 extern size_t current_thread_id;
 
-// Low-level thread saved state
-struct tll_saved_thread_state {
-  uint32_t regs[8]; // saved registers
-  int saved;
-};
-
 // Low-level thread manager
 struct tll_thread_manager {
-  struct tll_saved_thread_state *states;
   jmp_buf *save_jmps;
   bool *save_jmps_present;
   size_t max_thread_count;

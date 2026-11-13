@@ -1,5 +1,7 @@
 #include "threads_low_level.h"
 
+// multithreading design based on: https://stackoverflow.com/a/15554890
+
 size_t current_thread_id;
 
 void tll_init_manager(struct tll_thread_manager *manager, size_t max_thread_count, void *thread_stacks, size_t stack_size_per_thread) {
@@ -36,7 +38,6 @@ void tll_deinit_manager(struct tll_thread_manager *manager) {
 }
 
 void tll_yield2(struct tll_thread_manager *manager) {
-  // setjmp/longjmp might work in theory but they don't seem to be implemented on the teensy
   if (setjmp(manager->save_jmps[current_thread_id])) {
     // we're returing from a yield
     manager->save_jmps_present[current_thread_id] = false;
@@ -51,6 +52,7 @@ void tll_yield2(struct tll_thread_manager *manager) {
 
     if (manager->save_jmps_present[next_thread_id]) {
       // next thread found, now let's jump to it
+      current_thread_id = next_thread_id;
       longjmp(manager->save_jmps[next_thread_id], 1);
     }
   }
