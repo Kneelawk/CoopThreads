@@ -1,4 +1,3 @@
-#include <csetjmp>
 #include "threads_low_level.h"
 
 size_t current_thread_id;
@@ -37,12 +36,13 @@ void tll_deinit_manager(struct tll_thread_manager *manager) {
 }
 
 void tll_yield2(struct tll_thread_manager *manager) {
-  if (setjmp(*manager->save_jmps[current_thread_id])) {
+  // setjmp/longjmp might work in theory but they don't seem to be implemented on the teensy
+  if (setjmp(manager->save_jmps[current_thread_id])) {
     // we're returing from a yield
     manager->save_jmps_present[current_thread_id] = false;
     return;
   }
-  manager->save_jumps_present[current_thread_id] = true;
+  manager->save_jmps_present[current_thread_id] = true;
 
   // hacky next thread thingy
   size_t next_thread_id = current_thread_id;
@@ -51,7 +51,7 @@ void tll_yield2(struct tll_thread_manager *manager) {
 
     if (manager->save_jmps_present[next_thread_id]) {
       // next thread found, now let's jump to it
-      longjmp(*manager->save_jmps[next_thread_id], 1);
+      longjmp(manager->save_jmps[next_thread_id], 1);
     }
   }
 }
