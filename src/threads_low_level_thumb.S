@@ -20,10 +20,12 @@ tll_save:
   // get thread state location
   LDR r3, =current_thread_id                  // address of current thread id variable
   MOVS r1, TLL_SAVED_THREAD_STATE__SIZE       // size of the tll_saved_thread_state struct
-  LDR r0, [r0]                                // deref thread_manager arg to get states pointer
-  LDR r2, [r3]                                // deref thread id addr to get thread id
-  MLA r0, r1, r2, r0                          // index into thread_manager states array by thread id
+  LDR r2, [r0]                                // deref thread_manager arg to get states pointer
+  LDR ip, [r3]                                // deref thread id addr to get thread id
+  MLA r2, r1, ip, r2                          // index into thread_manager states array by thread id
 
+  // store saved registers
+  STMIA r2, {r4-r11}                          // store saved registers
   
 
   .global tll_yield
