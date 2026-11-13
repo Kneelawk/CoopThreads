@@ -4,6 +4,22 @@
 
 volatile size_t current_thread_id;
 
+// Internal. Launch next thread.
+void tll_launch_next(struct tll_thread_manager *manager) {
+  // hacky next thread thingy
+  size_t next_thread_id = current_thread_id;
+  const size_t max_thread_id = manager->max_thread_count + 1;
+  for (size_t i = 0; i < max_thread_id; i++) {
+    next_thread_id = (next_thread_id + 1) % max_thread_id;
+
+    if (manager->saves[next_thread_id].present) {
+      // next thread found, now let's jump to it
+      current_thread_id = next_thread_id;
+      longjmp(manager->saves[next_thread_id].jmp, 1);
+    }
+  }
+}
+
 void tll_init_manager(struct tll_thread_manager *manager, size_t max_thread_count, void *thread_stacks, size_t stack_size_per_thread) {
   // assumes manager is uninitialized but not null
 
@@ -15,38 +31,95 @@ void tll_init_manager(struct tll_thread_manager *manager, size_t max_thread_coun
   manager->stack_size_per_thread = stack_size_per_thread;
 
   // allocate thread state storage
-  manager->save_jmps = malloc(sizeof(jmp_buf) * (max_thread_count + 1));
-  manager->save_jmps_present = calloc(max_thread_count + 1, sizeof(bool));
+  manager->saves = calloc(max_thread_count + 1, sizeof(struct tll_saved_thread_state));
+
+  // allocate stack management variables
+  manager->stacks_in_use = calloc(max_thread_count + 1, sizeof(bool));
 
   // assumes there is no threading capability outside this,
   // so this is automatically initialized on the main thread
   current_thread_id = 0; // zero is the main thread, all threads are their index + 1
+  manager->stacks_in_use[0] = true;
 }
 
 void tll_deinit_manager(struct tll_thread_manager *manager) {
-  free(manager->save_jmps);
-  free(manager->save_jmps_present);
-  manager->save_jmps = NULL;
-  manager->save_jmps_present = NULL;
+  free(manager->saves);
+  free(manager->stacks_in_use);
+  manager->saves = NULL;
+  manager->stacks_in_use = NULL;
 }
 
-void tll_yield2(struct tll_thread_manager *manager) {
-  if (setjmp(manager->save_jmps[current_thread_id])) {
-    // we're returing from a yield
-    manager->save_jmps_present[current_thread_id] = false;
-    return;
-  }
-  manager->save_jmps_present[current_thread_id] = true;
-
-  // hacky next thread thingy
-  size_t next_thread_id = current_thread_id;
-  for (size_t i = 0; i < manager->max_thread_count; i++) {
-    next_thread_id = (next_thread_id + 1) % manager->max_thread_count;
-
-    if (manager->save_jmps_present[next_thread_id]) {
-      // next thread found, now let's jump to it
-      current_thread_id = next_thread_id;
-      longjmp(manager->save_jmps[next_thread_id], 1);
+int tll_schedule_thread_now(struct tll_thread_manager *manager, thread_func *func, void *input) {
+  // find free thread stack
+  struct tll_saved_thread_state *to_save = NULL;
+  size_t free_thread_id = 0;
+  const size_t max_thread_id = manager->max_thread_count + 1;
+  for (size_t i = 0; i < max_thread_id; i++) {
+    if (!manager->stacks_in_use[i]) {
+      free_thread_id = i;
+      to_save = &manager->saves[i];;
     }
   }
+
+  if (!to_save) {
+    // no free threads
+    return 2;
+  }
+
+  if (!free_thread_id) {
+    // main stack should never be free
+    return 3;
+  }
+
+  // store thread stuff because we won't have access to it post setjmp
+  to_save->start = func;
+  to_save->thread_input = input;
+  to_save->present = true;
+
+  // get storage pointer
+  // free_thread_id is the index of our stack + 1, meaning this variable
+  // points to the high end of this thread's stack, as stacks usually grow downwards
+  void *new_stack = manager->thread_stacks + (free_thread_id * manager->stack_size_per_thread);
+
+  // store storage manager pointer on the new stack so we can access it post setjmp
+  new_stack -= sizeof(void *);
+  *((void **) new_stack) = manager;
+
+  // TODO: store old stack pointer in saved register
+  // TODO: store old stack limit in saved register
+  // TODO: set new stack pointer
+  // TODO: set new stack limit
+  if (setjmp(to_save->jmp)) {
+    // we're now in the thread, we likely don't have access to the rest of this method's variables
+    // TODO: pop manager from stack
+    struct tll_thread_manager *ns_manager;
+
+    // retrieve new thread state
+    struct tll_saved_thread_state *ns_save = &ns_manager->saves[current_thread_id];
+    thread_func *ns_func = ns_save->start;
+    void *ns_input = ns_save->thread_input;
+    ns_save->start = NULL;
+    ns_save->thread_input = NULL;
+
+    // launch the thread
+    (ns_func)(ns_input);
+
+    // the thread finished, jump to another thread
+    tll_launch_next(ns_manager)
+  }
+  // TODO: restore stack pointer from saved register
+  // TODO: restore stack limit from saved regiser
+
+  return 0;
+}
+
+void tll_yield(struct tll_thread_manager *manager) {
+  if (setjmp(manager->saves[current_thread_id].jmp)) {
+    // we're returing from a yield
+    manager->saves[current_thread_id].present = false;
+    return;
+  }
+  manager->saves[current_thread_id].present = true;
+
+  tll_launch_next(manager);
 }
