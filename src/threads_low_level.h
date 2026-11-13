@@ -13,7 +13,7 @@ extern "C" {
 
 // normally it would be terrible idea to store thread information in a global variable,
 // but the Teensy4.1 is single-core and we are the only ones switching and managing threads
-extern size_t current_thread_id;
+extern volatile size_t current_thread_id;
 
 // Low-level thread manager
 struct tll_thread_manager {
