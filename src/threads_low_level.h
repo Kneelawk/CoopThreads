@@ -26,8 +26,11 @@ struct tll_saved_thread_state {
 
 // Low-level thread manager
 struct tll_thread_manager {
+  // index 0 is main state
   struct tll_saved_thread_state *saves;
+  // index 0 is the bottom of the stack for thread id 1
   void *thread_stacks;
+  // index 0 is main stack, which should always be true
   bool *stacks_in_use;
   size_t max_thread_count;
   size_t stack_size_per_thread;

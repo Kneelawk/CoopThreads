@@ -1,5 +1,10 @@
 #include "threads_low_level.h"
 
+// Threads Low-Level subroutine for performing a setjmp but with a custom stack
+//
+// Note: it is not safe to return if this returns a non-zero value
+int tll_setjmp_stack(jmp_buf jump_to, uint32_t new_sp, uint32_t new_sl);
+
 // multithreading design based on: https://stackoverflow.com/a/15554890
 
 volatile size_t current_thread_id;
@@ -80,19 +85,18 @@ int tll_schedule_thread_now(struct tll_thread_manager *manager, thread_func *fun
   // free_thread_id is the index of our stack + 1, meaning this variable
   // points to the high end of this thread's stack, as stacks usually grow downwards
   void *new_stack = manager->thread_stacks + (free_thread_id * manager->stack_size_per_thread);
+  void *new_stack_limit = manager->thread_stacks + ((free_thread_id - 1) * manager->stack_size_per_thread);
+  // we're using it now
+  manager->stacks_in_use[free_thread_id] = true;
 
   // store storage manager pointer on the new stack so we can access it post setjmp
   new_stack -= sizeof(void *);
   *((void **) new_stack) = manager;
 
-  // TODO: store old stack pointer in saved register
-  // TODO: store old stack limit in saved register
-  // TODO: set new stack pointer
-  // TODO: set new stack limit
-  if (setjmp(to_save->jmp)) {
+  if (tll_setjmp_stack(to_save->jmp, (uint32_t) new_stack, (uint32_t) new_stack_limit)) {
     // we're now in the thread, we likely don't have access to the rest of this method's variables
-    // TODO: pop manager from stack
     struct tll_thread_manager *ns_manager;
+    asm volatile("POP {%0}" : "=r" (ns_manager));
 
     // retrieve new thread state
     struct tll_saved_thread_state *ns_save = &ns_manager->saves[current_thread_id];
@@ -100,15 +104,21 @@ int tll_schedule_thread_now(struct tll_thread_manager *manager, thread_func *fun
     void *ns_input = ns_save->thread_input;
     ns_save->start = NULL;
     ns_save->thread_input = NULL;
+    ns_save->present = false;
 
     // launch the thread
     (ns_func)(ns_input);
 
+    // the thread exited, so ig that means our stack is no longer in use
+    ns_manager->stacks_in_use[current_thread_id] = false;
+
     // the thread finished, jump to another thread
-    tll_launch_next(ns_manager)
+    while (true) {
+      // make sure we can never return
+      tll_launch_next(ns_manager);
+      // if we returned, then it means there are no other threads active, this is an error
+    }
   }
-  // TODO: restore stack pointer from saved register
-  // TODO: restore stack limit from saved regiser
 
   return 0;
 }

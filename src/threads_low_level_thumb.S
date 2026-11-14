@@ -28,3 +28,39 @@
   // store registers to tll_saved_thread_state struct
 //  STMIA r2!, {r4-r11}                          // store saved registers
 
+
+  // Threads Low-Level subroutine for performing a setjmp but with a custom stack
+  //
+  // Note: it is not safe to return if this returns a non-zero value
+  //
+  // Arguments:
+  // r0: pointer to buffer to store jmp registers into
+  // r1: new stack pointer
+  // r2: new stack limit
+  // Returns:
+  // r0: setjmp result
+  .global tll_setjmp_stack
+  .thumb_func
+tll_setjmp_stack:
+  // save old r4, r5, & r6 on old stack
+  PUSH {r4, r5, r6} 
+  // save old sp, sl, & lr in saved registers
+  MOV r4, sp
+  MOV r5, sl
+  MOV r6, lr
+  // apply sp & sl
+  MOV sp, r1
+  MOV sl, r2
+  // call setjmp
+  BL setjmp
+  // we're back from setjmp, either we've just setup our jmp buf, or we've been jumped to
+  CBZ r0, _tll_setjmp_stack_continue
+  // we've been jumped to, so just return now with the new stack
+  BX r6
+
+_tll_setjmp_stack_continue:
+  // we've just setup our jump buf, so reset everything to how it was when we were called
+  MOV sl, r5
+  MOV sp, r4
+  POP {r4, r5, r6}
+  BX r6
