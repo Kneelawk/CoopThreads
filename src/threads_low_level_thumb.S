@@ -60,7 +60,8 @@ tll_setjmp_stack:
 
 _tll_setjmp_stack_continue:
   // we've just setup our jump buf, so reset everything to how it was when we were called
+  MOV lr, r6
   MOV sl, r5
   MOV sp, r4
   POP {r4, r5, r6}
-  BX r6
+  BX lr

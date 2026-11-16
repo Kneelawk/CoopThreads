@@ -3,6 +3,8 @@
 // Threads Low-Level subroutine for performing a setjmp but with a custom stack
 //
 // Note: it is not safe to return if this returns a non-zero value
+//
+// source is in threads_low_level_thumb.S
 int tll_setjmp_stack(jmp_buf jump_to, uint32_t new_sp, uint32_t new_sl);
 
 // multithreading design based on: https://stackoverflow.com/a/15554890
@@ -89,12 +91,14 @@ int tll_schedule_thread_now(struct tll_thread_manager *manager, thread_func *fun
   // we're using it now
   manager->stacks_in_use[free_thread_id] = true;
 
-  // store storage manager pointer on the new stack so we can access it post setjmp
+  // push storage manager pointer on the new stack so we can access it post setjmp
   new_stack -= sizeof(void *);
   *((void **) new_stack) = manager;
 
   if (tll_setjmp_stack(to_save->jmp, (uint32_t) new_stack, (uint32_t) new_stack_limit)) {
-    // we're now in the thread, we likely don't have access to the rest of this method's variables
+    // we're now in the thread on the new stack, we likely don't have access to the rest of this method's variables
+
+    // pop thread manager pointer off new stack
     struct tll_thread_manager *ns_manager;
     asm volatile("POP {%0}" : "=r" (ns_manager));
 
@@ -102,6 +106,8 @@ int tll_schedule_thread_now(struct tll_thread_manager *manager, thread_func *fun
     struct tll_saved_thread_state *ns_save = &ns_manager->saves[current_thread_id];
     thread_func *ns_func = ns_save->start;
     void *ns_input = ns_save->thread_input;
+
+    // setup save state for thread running
     ns_save->start = NULL;
     ns_save->thread_input = NULL;
     ns_save->present = false;
@@ -120,6 +126,7 @@ int tll_schedule_thread_now(struct tll_thread_manager *manager, thread_func *fun
     }
   }
 
+  // we're not in the thread and are back in our own stack, so it is safe to return here
   return 0;
 }
 
