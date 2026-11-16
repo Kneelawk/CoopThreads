@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <setjmp.h>
 
+#include "threads_timing.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -21,6 +23,7 @@ struct tll_saved_thread_state {
   jmp_buf jmp;
   thread_func *start;
   void *thread_input;
+  thread_time_t run_time;
   bool present;
 };
 
