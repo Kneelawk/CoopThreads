@@ -53,6 +53,17 @@ int tll_schedule_thread_now(struct tll_thread_manager *manager, thread_func *fun
 // Yield to another thread managed by this manager
 void tll_yield(struct tll_thread_manager *manager);
 
+// Delays (and yields) for roughly the given number of milliseconds
+void tll_delay_millis(struct tll_thread_manager *manager, uint32_t millis);
+
+// Delays (and yields) for roughly the given number of microseconds
+void tll_delay_micros(struct tll_thread_manager *manager, uint32_t micros);
+
+// Delays (and yields) for roughly the given number of nanosecond
+//
+// Note: this method will likely not be very accurate for delays less than 100ns
+void tll_delay_nanos(struct tll_thread_manager *manager, uint32_t nanos);
+
 #ifdef __cplusplus
 }
 #endif

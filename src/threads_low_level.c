@@ -80,7 +80,7 @@ int tll_schedule_thread_now(struct tll_thread_manager *manager, thread_func *fun
   for (size_t i = 0; i < max_thread_id; i++) {
     if (!manager->stacks_in_use[i]) {
       free_thread_id = i;
-      to_save = &manager->saves[i];;
+      to_save = &manager->saves[i];
     }
   }
 
@@ -149,12 +149,73 @@ int tll_schedule_thread_now(struct tll_thread_manager *manager, thread_func *fun
 }
 
 void tll_yield(struct tll_thread_manager *manager) {
+  // yield to arduino first
+  yield();
+
+  // prepare current thread for re-launch as soon as possible
+  manager->saves[current_thread_id].schedule_time = thread_time_now();
+  manager->saves[current_thread_id].schedule_delay = (thread_duration_t) {0};
+  manager->saves[current_thread_id].present = true;
+
+  // setup the return state
   if (setjmp(manager->saves[current_thread_id].jmp)) {
     // we're returing from a yield
     manager->saves[current_thread_id].present = false;
     return;
   }
+
+  tll_launch_next(manager);
+}
+
+// Delays (and yields) for roughly the given number of milliseconds
+void tll_delay_millis(struct tll_thread_manager *manager, uint32_t millis) {
+  // prepare current thread for re-launch after delay
+  manager->saves[current_thread_id].schedule_time = thread_time_now();
+  manager->saves[current_thread_id].schedule_delay = thread_duration_millis(millis);
   manager->saves[current_thread_id].present = true;
+
+  // setup the return state
+  if (setjmp(manager->saves[current_thread_id].jmp)) {
+    // we're returing from a yield
+    manager->saves[current_thread_id].present = false;
+    return;
+  }
+
+  tll_launch_next(manager);
+}
+
+// Delays (and yields) for roughly the given number of microseconds
+void tll_delay_micros(struct tll_thread_manager *manager, uint32_t micros) {
+  // prepare current thread for re-launch after delay
+  manager->saves[current_thread_id].schedule_time = thread_time_now();
+  manager->saves[current_thread_id].schedule_delay = thread_duration_micros(micros);
+  manager->saves[current_thread_id].present = true;
+
+  // setup the return state
+  if (setjmp(manager->saves[current_thread_id].jmp)) {
+    // we're returing from a yield
+    manager->saves[current_thread_id].present = false;
+    return;
+  }
+
+  tll_launch_next(manager);
+}
+
+// Delays (and yields) for roughly the given number of nanosecond
+//
+// Note: this method will likely not be very accurate for delays less than 200ns
+void tll_delay_nanos(struct tll_thread_manager *manager, uint32_t nanos) {
+  // prepare current thread for re-launch after delay
+  manager->saves[current_thread_id].schedule_time = thread_time_now();
+  manager->saves[current_thread_id].schedule_delay = thread_duration_nanos(nanos);
+  manager->saves[current_thread_id].present = true;
+
+  // setup the return state
+  if (setjmp(manager->saves[current_thread_id].jmp)) {
+    // we're returing from a yield
+    manager->saves[current_thread_id].present = false;
+    return;
+  }
 
   tll_launch_next(manager);
 }
