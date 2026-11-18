@@ -23,7 +23,8 @@ struct tll_saved_thread_state {
   jmp_buf jmp;
   thread_func *start;
   void *thread_input;
-  thread_time_t run_time;
+  thread_time_t schedule_time;
+  thread_duration_t schedule_delay;
   bool present;
 };
 

@@ -3,36 +3,46 @@
 #ifndef THREADS_TIMING
 #define THREADS_TIMING
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 // Describes a point in time from the processor's perspective
 typedef struct {
-  uint32_t clock_cycle;
-  uint32_t millisecond;
+  uint32_t clock_cycles;
+  uint32_t milliseconds;
 } thread_time_t;
 
+// Describes a duration from the processor's perspective
+typedef struct {
+  uint32_t clock_cycles;
+  uint32_t milliseconds;
+} thread_duration_t;
+
 // Gets the current time
-// TODO: look into inlining this
 thread_time_t thread_time_now();
 
 // Gets a future point in time in milliseconds
-thread_time_t thread_time_future_millis(uint32_t millis);
+thread_duration_t thread_duration_millis(uint32_t millis);
 
 // Gets a future point in time in microseconds
-thread_time_t thread_time_future_micros(uint32_t micros);
+thread_duration_t thread_duration_micros(uint32_t micros);
 
 // Gets a future point in time in nanoseconds
-// TODO: look into inlining this
-thread_time_t thread_time_future_nanos(uint32_t nanos);
+thread_duration_t thread_duration_nanos(uint32_t nanos);
 
 // Compares one thread time to another
-int thread_time_cmp(thread_time_t a, thread_time_t b);
+// TODO: does this need to be inline?
+int thread_delay_cmp(thread_time_t a_base, thread_duration_t a_wait, thread_time_t b_base, thread_duration_t b_wait);
 
-// Waits until the given time is past
-// TODO: look into inlining this
-void thread_time_await(thread_time_t time);
+// Waits for the given delay
+//
+// Used when there are no threads that need to be executed earlier.
+//
+// `base` is used to keep track of when the delay was first started so the wait function doesn't run into roll-over issues.
+void thread_delay_await(thread_time_t base, thread_duration_t wait);
 
 #ifdef __cplusplus
 }

@@ -7,24 +7,40 @@
 // source is in threads_low_level_thumb.S
 int tll_setjmp_stack(jmp_buf jump_to, uint32_t new_sp, uint32_t new_sl);
 
-// multithreading design based on: https://stackoverflow.com/a/15554890
+// multithreading design based on: https://stackoverflow.com/a/15554890 (minus using the main thread as the scheduler)
 
 volatile size_t current_thread_id;
 
 // Internal. Launch next thread.
 void tll_launch_next(struct tll_thread_manager *manager) {
-  // hacky next thread thingy
-  size_t next_thread_id = current_thread_id;
-  const size_t max_thread_id = manager->max_thread_count + 1;
-  for (size_t i = 0; i < max_thread_id; i++) {
-    next_thread_id = (next_thread_id + 1) % max_thread_id;
+  // hacky real-time next thread thingy
 
-    if (manager->saves[next_thread_id].present) {
-      // next thread found, now let's jump to it
-      current_thread_id = next_thread_id;
-      longjmp(manager->saves[next_thread_id].jmp, 1);
+  const size_t max_thread_id = manager->max_thread_count + 1;
+
+  // use the current thread as a default
+  thread_time_t base = manager->saves[current_thread_id].schedule_time;
+  thread_duration_t delay = manager->saves[current_thread_id].schedule_delay;
+  size_t new_thread_id = current_thread_id;
+
+  // go through every thread to find the one scheduled soonest
+  for (size_t i = 0; i < max_thread_id; i++) {
+    struct tll_saved_thread_state *save = &manager->saves[i];
+    if (save->present && thread_delay_cmp(base, delay, save->schedule_time, save->schedule_delay) >= 0) {
+      base = save->schedule_time;
+      delay = save->schedule_delay;
+      new_thread_id = i;
     }
   }
+
+  // for debugging purposes, make it clear that we are not in a thread during this delay
+  current_thread_id = -1;
+
+  // wait for soonest thread
+  thread_delay_await(base, delay);
+
+  // launch new thread
+  current_thread_id = new_thread_id;
+  longjmp(manager->saves[new_thread_id].jmp, 1);
 }
 
 void tll_init_manager(struct tll_thread_manager *manager, size_t max_thread_count, void *thread_stacks, size_t stack_size_per_thread) {
@@ -81,6 +97,8 @@ int tll_schedule_thread_now(struct tll_thread_manager *manager, thread_func *fun
   // store thread stuff because we won't have access to it post setjmp
   to_save->start = func;
   to_save->thread_input = input;
+  to_save->schedule_time = thread_time_now();
+  to_save->schedule_delay = (thread_duration_t) {0};
   to_save->present = true;
 
   // get storage pointer
