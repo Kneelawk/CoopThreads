@@ -2,7 +2,7 @@
 
 CoopThreads<8192> threads(8);
 
-void myThread(size_t i) {
+void myThread() {
   while (true) {
     threads.delay(300);
     digitalWrite(12, HIGH);
@@ -16,7 +16,7 @@ void setup() {
   pinMode(13, OUTPUT);
 
   // schedule the thread
-  threads.spawn<size_t>(myThread, 10);
+  threads.spawn(myThread);
 }
 
 void loop() {
