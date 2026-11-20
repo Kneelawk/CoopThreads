@@ -28,28 +28,6 @@ public:
   // Spawns a new thread
   virtual bool spawn(std::function<void()> fn) = 0;
 
-  // Spawns a new thread
-  template<typename... Args>
-  bool spawn(std::function<void(Args...)> f, Args... args) {
-    // capture args as context
-    std::function<void()> capture = [=]() mutable {
-      f(std::forward<Args>(args)...);
-    };
-
-    return spawn(capture);
-  }
-
-  // Spawns a new thread
-  template<typename... Args>
-  bool spawn(void (*f)(Args...), Args... args) {
-    // capture args as context
-    std::function<void()> capture = [=]() mutable {
-      f(std::forward<Args>(args)...);
-    };
-
-    return spawn(capture);
-  }
-
   // Yields to another thread, allowing it to execute if scheduled for now
   virtual void yield() = 0;
 
@@ -87,28 +65,6 @@ public:
     std::function<void()> *fn_ptr = new std::function<void()>(fn);
 
     return !tll_schedule_thread_now(&threads, coopThreadsInvoke, fn_ptr);
-  }
-
-  // Spawns a new thread
-  template<typename... Args>
-  bool spawn(std::function<void(Args...)> f, Args... args) {
-    // capture args as context
-    std::function<void()> capture = [=]() mutable {
-      f(std::forward<Args>(args)...);
-    };
-
-    return spawn(capture);
-  }
-
-  // Spawns a new thread
-  template<typename... Args>
-  bool spawn(void (*f)(Args...), Args... args) {
-    // capture args as context
-    std::function<void()> capture = [=]() mutable {
-      f(std::forward<Args>(args)...);
-    };
-
-    return spawn(capture);
   }
 
   virtual void yield() override {
