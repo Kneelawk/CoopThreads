@@ -1,5 +1,3 @@
-#include "core_pins.h"
-#include <utility>
 #ifndef COOP_THREADS_H
 #define COOP_THREADS_H
 
